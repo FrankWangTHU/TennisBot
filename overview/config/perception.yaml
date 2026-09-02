@@ -1,0 +1,35 @@
+apriltag:
+  family: DICT_APRILTAG_36h11
+  robot_tag_id: 0
+  front_edge: top
+  corner_refinement: APRILTAG
+  error_correction_rate: 0.8
+ball_detection:
+  hsv_lower:
+  - 29
+  - 92
+  - 141
+  hsv_upper:
+  - 41
+  - 255
+  - 255
+  min_area: 34.2
+  max_area: 10000.0
+  min_circularity: 0.55
+  morph_kernel: 5
+  restrict_to_field: true
+  field_margin_m: 0.02
+performance:
+  processing_scale: 0.5
+  # AprilTag 单独使用原始分辨率，避免远距离/斜视时因缩小导致漏检。
+  apriltag_scale: 1.0
+
+ball_tracking:
+  enabled: true
+  match_distance_m: 0.12
+  # 最后位置重新露出白色地面约 1 秒后才确认球已被拿走。
+  removal_confirm_frames: 30
+  # 球靠近机器人时按“被遮挡”处理，不因暂时看不见而删除。
+  robot_occlusion_radius_m: 0.35
+  clear_floor_fraction: 0.60
+  position_alpha: 0.35

@@ -1,0 +1,10 @@
+field:
+  # 实验室场地实际尺寸（米）。左下角为 world (0, 0)，+X=1.25m，+Y=2.0m。
+  width_m: 1.25
+  height_m: 2.0
+
+  # 用于 scripts/verify_field_calibration.py 的已知地面点
+  verification_points:
+    - [0.25, 0.40]
+    - [0.625, 1.00]
+    - [1.00, 1.60]

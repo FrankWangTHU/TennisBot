@@ -1,0 +1,8 @@
+camera:
+  # 用 scripts/list_cameras.py 找到 Camo Camera 对应的 index 后再改这里
+  index: 2
+  width: 1920
+  height: 1080
+  fps: 30
+  # Windows 1080p 下 MJPG 通常比未压缩格式更流畅；若 Camo 不支持可改为空字符串。
+  fourcc: MJPG
