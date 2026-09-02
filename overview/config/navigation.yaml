@@ -1,0 +1,28 @@
+target:
+  x_m: 0.625
+  y_m: 1.0
+  theta_deg: 0.0
+
+controller:
+  kp_xy: 1.0
+  kp_theta: 1.8
+  max_linear_mps: 0.08
+  max_angular_radps: 0.45
+  max_linear_accel_mps2: 0.12
+  max_angular_accel_radps2: 0.8
+  position_tolerance_m: 0.05
+  heading_tolerance_deg: 8.0
+  settle_time_s: 0.6
+
+latency:
+  # 当前估计的相机->识别结果总延迟。先保守按 0.9 秒补偿，后续实测再改。
+  measurement_latency_s: 0.9
+  # AprilTag 短暂漏检时继续用运动模型预测；超过此时间立即停车。
+  pose_loss_grace_s: 0.25
+
+driver:
+  # 首次调试保持 dry_run；完成架空轮测试后改为 serial。
+  type: dry_run
+  port: COM12
+  baudrate: 115200
+  command_timeout_s: 0.25

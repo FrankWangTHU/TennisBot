@@ -1,6 +1,6 @@
 # TennisBot V1 全局视觉定位
 
-使用 iPhone + Camo Camera + Windows OpenCV，在固定平面场地中实时输出车顶 AprilTag 的世界位姿 `(x, y, theta)` 和网球的世界坐标。V1 只实现视觉定位，不包含小车控制、路径规划、机械臂或 ROS。
+使用 iPhone + Camo Camera + Windows OpenCV，在固定平面场地中实时输出车顶 AprilTag 的世界位姿 `(x, y, theta)` 和网球的世界坐标。视觉闭环底盘控制和完整的安全调试步骤见 [NAVIGATION.md](NAVIGATION.md)。
 
 ## 环境准备
 

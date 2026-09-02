@@ -10,3 +10,5 @@ data/debug/*
 *.jpg
 *.png
 !data/calibration/.gitkeep
+tmp/
+车体控制部分/
