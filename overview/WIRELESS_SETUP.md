@@ -78,29 +78,34 @@ UDP_PORT = 5005
 
 然后把同一个 `CONTROL_TOKEN` 写入 `config/navigation.yaml` 的 `driver.token`。两边必须完全一致。
 
-## 第四阶段：上传五个 Python 文件
+## 第四阶段：选择 UDP 模式并上传完整烧录包
 
-1. 在 Thonny 中按红色停止按钮，确认 Shell 是 `>>>`。
-2. 选择 `视图 -> 文件`，上方是电脑文件，下方是 MicroPython 设备文件。
-3. 在电脑侧进入 `overview/firmware/esp32_chassis_bridge`。
-4. 把以下文件逐个上传到设备根目录 `/`，文件名不能修改：
+1. 先把 `control_config.py` 设置为 `CONTROL_MODE = "udp"`。
+2. 在 Thonny 中按红色停止按钮，确认 Shell 是 `>>>`。
+3. 选择 `视图 -> 文件`，上方是电脑文件，下方是 MicroPython 设备文件。
+4. 在电脑侧进入 `overview/firmware/esp32_chassis_bridge`。
+5. 把以下文件逐个上传到设备根目录 `/`，文件名不能修改：
 
 ```text
+boot.py
 main.py
+control_config.py
+wifi_config.py
 chassis_control.py
 motor_lib.py
 robot_config.py
-wifi_config.py
+ps2_control.py
+ps2_lib.py
 ```
 
 可以右键文件选择“上传到 /”，也可以打开文件后选择 `文件 -> 另存为 -> MicroPython 设备`。
 
-5. 确认设备文件列表中五个文件都存在。
-6. 按控制板 RESET，或在 Shell 按 `Ctrl+D` 软重启。
-7. Shell 应显示：
+6. 确认设备文件列表中九个文件都存在。
+7. 按控制板 RESET，或在 Shell 按 `Ctrl+D` 软重启。
+8. Shell 应显示：
 
 ```text
-READY:TennisBot Wi-Fi chassis bridge
+READY:TennisBot udp chassis bridge
 WIFI:ssid=TennisBot ip=192.168.4.1 udp=5005
 ```
 

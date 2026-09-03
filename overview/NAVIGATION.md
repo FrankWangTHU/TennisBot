@@ -6,7 +6,7 @@ PC 从 Camo 图像得到 AprilTag 世界位姿，控制器把目标误差转换�
 
 接近 1 秒的图像延迟对闭环明显偏大：0.08 m/s 时反馈已落后约 8 cm。本实现按配置的 `measurement_latency_s` 做恒速位姿预测，短暂漏 Tag 最多预测 0.25 s，之后立即发零速；这能支持低速验证，但不能代替里程计/IMU 的高频局部闭环。
 
-遥控器建议作为人工接管工具保留。当前 PC 固件不同时读取 PS2，避免两套控制源互相覆盖；切回原厂 `main.py` 就能恢复遥控模式。
+遥控器作为独立模式保留。在板端 `control_config.py` 中选择 `serial`、`udp` 或 `ps2`；三种模式互斥，避免两套控制源同时覆盖电机命令。
 
 ## 0. 安全准备
 
@@ -28,14 +28,7 @@ python scripts/list_serial_ports.py
 
 ## 2. 刷写 ESP32 串口桥
 
-用 Thonny 连接 ESP32-S3 的 MicroPython 解释器，把 `firmware/esp32_chassis_bridge` 下这四个文件上传到板子根目录：
-
-- `main.py`
-- `chassis_control.py`
-- `motor_lib.py`
-- `robot_config.py`
-
-重启板子。Shell 应出现 `READY:TennisBot serial chassis bridge`。不要把原厂 PS2 的 `main.py` 和本桥接 `main.py` 混用；原文件先在 PC 备份即可。
+先把 `firmware/esp32_chassis_bridge/control_config.py` 设置为 `CONTROL_MODE = "serial"`，再按照该目录 README 将完整的 9 个文件上传到板子根目录。重启后 Shell 应出现 `READY:TennisBot serial chassis bridge`。
 
 ## 3. 只测通信，不转电机
 

@@ -4,6 +4,8 @@
 
 ESP32-S3 无线热点、厂家固件烧录、Thonny 文件上传和 UDP 验收步骤见 [WIRELESS_SETUP.md](WIRELESS_SETUP.md)。
 
+以原始底盘示例为基线的板端烧录包、PC 有线通信和键盘控制步骤见 [CONTROL_SETUP.md](CONTROL_SETUP.md)。
+
 ## 环境准备
 
 建议使用 Windows 和 64 位 Python 3.10–3.13（本项目已在 Python 3.13 完成自动化测试）。先启动 Camo，确认 iPhone 画面在 Camo 中稳定显示，并关闭可能占用虚拟摄像头的其他软件。

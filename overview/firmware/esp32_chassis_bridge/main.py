@@ -11,6 +11,7 @@ from chassis_control import MecanumChassis
 from motor_lib import MotorBus
 from robot_config import CAN_BAUDRATE, CAN_BUS_ID, CAN_RX, CAN_TX
 from wifi_config import AP_PASSWORD, AP_SSID, CONTROL_TOKEN, UDP_PORT
+from control_config import CONTROL_MODE
 
 COMMAND_WATCHDOG_MS = 300
 
@@ -28,10 +29,41 @@ def start_access_point():
 can = CAN(CAN_BUS_ID, mode=CAN.NORMAL, baudrate=CAN_BAUDRATE, tx=CAN_TX, rx=CAN_RX)
 can.clear_rx_queue()
 chassis = MecanumChassis(MotorBus(can))
-ap = start_access_point()
-udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp.bind(("0.0.0.0", UDP_PORT))
-udp.setblocking(False)
+
+
+def run_ps2_mode():
+    from ps2_control import ps2_loop
+    from ps2_lib import PS2Controller, PS2Receiver
+    from robot_config import PS2_CLK, PS2_CS, PS2_DI, PS2_DO
+
+    chassis.prepare()
+    controller = PS2Controller(di=PS2_DI, do=PS2_DO, cs=PS2_CS, clk=PS2_CLK)
+    controller.init_vibration()
+    receiver = PS2Receiver(controller, 30, True)
+    receiver.start()
+    try:
+        # PS2 原示例只有 data 不为 None 时才访问 serial；此模式不接收相机串口。
+        ps2_loop(chassis, None, receiver, {"value": None}, None)
+    finally:
+        receiver.stop()
+        chassis.stop()
+        chassis.disable()
+
+
+if CONTROL_MODE == "ps2":
+    print("READY:TennisBot PS2 mode")
+    run_ps2_mode()
+    raise SystemExit
+if CONTROL_MODE not in ("serial", "udp"):
+    raise ValueError("CONTROL_MODE must be serial, udp, or ps2")
+
+ap = None
+udp = None
+if CONTROL_MODE == "udp":
+    ap = start_access_point()
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.bind(("0.0.0.0", UDP_PORT))
+    udp.setblocking(False)
 poller = uselect.poll()
 poller.register(sys.stdin, uselect.POLLIN)
 
@@ -47,6 +79,8 @@ def serial_reply(text):
 
 
 def udp_reply(text, peer):
+    if udp is None:
+        return
     udp.sendto(text.encode("ascii"), peer)
 
 
@@ -157,9 +191,10 @@ def handle_udp(payload, peer):
         udp_reply("ERR:%s" % exc, peer)
 
 
-ip = ap.ifconfig()[0]
-serial_reply("READY:TennisBot Wi-Fi chassis bridge")
-serial_reply("WIFI:ssid=%s ip=%s udp=%d" % (AP_SSID, ip, UDP_PORT))
+serial_reply("READY:TennisBot %s chassis bridge" % CONTROL_MODE)
+if ap is not None:
+    ip = ap.ifconfig()[0]
+    serial_reply("WIFI:ssid=%s ip=%s udp=%d" % (AP_SSID, ip, UDP_PORT))
 try:
     while True:
         if poller.poll(0):
@@ -167,11 +202,12 @@ try:
                 handle_serial(sys.stdin.readline())
             except Exception as exc:
                 serial_reply("ERR:%s" % exc)
-        try:
-            data, sender = udp.recvfrom(160)
-            handle_udp(data, sender)
-        except OSError:
-            pass
+        if udp is not None:
+            try:
+                data, sender = udp.recvfrom(160)
+                handle_udp(data, sender)
+            except OSError:
+                pass
         if enabled and time.ticks_diff(time.ticks_ms(), last_drive_ms) > COMMAND_WATCHDOG_MS:
             chassis.stop()
             chassis.disable()
