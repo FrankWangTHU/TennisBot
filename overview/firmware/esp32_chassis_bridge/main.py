@@ -10,10 +10,16 @@ from esp32 import CAN
 from chassis_control import MecanumChassis
 from motor_lib import MotorBus
 from robot_config import CAN_BAUDRATE, CAN_BUS_ID, CAN_RX, CAN_TX
-from wifi_config import AP_PASSWORD, AP_SSID, CONTROL_TOKEN, UDP_PORT
+from wifi_config import (
+    AP_PASSWORD,
+    AP_SSID,
+    CONTROL_TOKEN,
+    UDP_COMMAND_WATCHDOG_MS,
+    UDP_PORT,
+)
 from control_config import CONTROL_MODE
 
-COMMAND_WATCHDOG_MS = 300
+COMMAND_WATCHDOG_MS = 600 if CONTROL_MODE == "udp" else 300
 
 
 def start_access_point():
@@ -144,28 +150,28 @@ def handle_udp(payload, peer):
             raise ValueError("short packet")
         command, token, sequence_text = parts[:3]
         command = command.upper()
-        if token != CONTROL_TOKEN:
-            udp_reply("ERR:AUTH", peer)
-            return
         sequence = int(sequence_text)
+        if token != CONTROL_TOKEN:
+            udp_reply("ERR:AUTH %d" % sequence, peer)
+            return
         if command == "PING":
             udp_reply("OK:PING %d" % sequence, peer)
             return
         if command == "ENABLE":
             if active_peer not in (None, peer):
-                udp_reply("ERR:BUSY", peer)
+                udp_reply("ERR:BUSY %d" % sequence, peer)
                 return
             active_peer = peer
             last_udp_seq = sequence
-            udp_reply("INFO:ENABLE:starting", peer)
+            udp_reply("INFO:ENABLE:starting %d" % sequence, peer)
             enable_chassis()
             udp_reply("OK:ENABLE %d" % sequence, peer)
             return
         if active_peer != peer or not enabled:
-            udp_reply("ERR:DISABLED_OR_BUSY", peer)
+            udp_reply("ERR:DISABLED_OR_BUSY %d" % sequence, peer)
             return
         if sequence <= last_udp_seq:
-            udp_reply("ERR:STALE", peer)
+            udp_reply("ERR:STALE %d" % sequence, peer)
             return
         last_udp_seq = sequence
         if command == "DRIVE":
@@ -188,7 +194,7 @@ def handle_udp(payload, peer):
             age = time.ticks_diff(time.ticks_ms(), last_drive_ms)
             udp_reply("OK:STATUS %d enabled=%d drive_age_ms=%d" % (sequence, enabled, age), peer)
         else:
-            udp_reply("ERR:UNKNOWN_COMMAND", peer)
+            udp_reply("ERR:UNKNOWN_COMMAND %d" % sequence, peer)
     except Exception as exc:
         udp_reply("ERR:%s" % exc, peer)
 

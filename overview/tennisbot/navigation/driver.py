@@ -122,10 +122,29 @@ class UdpChassisDriver(ChassisDriver):
         fields = [command, self.token, str(self.sequence), *(str(value) for value in values)]
         return (" ".join(fields) + "\n").encode("ascii")
 
+    def _drain_pending(self) -> list[str]:
+        if self.socket is None:
+            return []
+        old_timeout = self.socket.gettimeout()
+        replies = []
+        try:
+            self.socket.setblocking(False)
+            while True:
+                data, sender = self.socket.recvfrom(256)
+                if sender[0] == self.address[0]:
+                    replies.append(data.decode("ascii", "replace").strip())
+        except (BlockingIOError, socket.timeout):
+            pass
+        finally:
+            self.socket.settimeout(old_timeout)
+        return replies
+
     def _request(self, command: str, expected: str, timeout_s: float | None = None) -> str:
         if self.socket is None:
             raise RuntimeError("UDP chassis is not connected")
+        self._drain_pending()
         packet = self._packet(command)
+        request_sequence = self.sequence
         deadline = time.monotonic() + (self.timeout_s if timeout_s is None else timeout_s)
         enable_started = False
         self.socket.sendto(packet, self.address)
@@ -140,11 +159,20 @@ class UdpChassisDriver(ChassisDriver):
                 continue
             reply = data.decode("ascii", "replace").strip()
             if sender[0] == self.address[0] and reply.startswith("INFO:ENABLE:"):
+                if reply.split()[-1].isdigit() and int(reply.split()[-1]) != request_sequence:
+                    continue
                 enable_started = True
                 continue
             if sender[0] == self.address[0] and reply.startswith(expected):
+                if reply.split()[-1].isdigit() and int(reply.split()[-1]) != request_sequence:
+                    continue
                 return reply
             if sender[0] == self.address[0] and reply.startswith("ERR:"):
+                if reply.split()[-1].isdigit() and int(reply.split()[-1]) != request_sequence:
+                    continue
+                if command == "ENABLE" and reply.startswith("ERR:DISABLED_OR_BUSY"):
+                    # Old firmware may leave this asynchronous DRIVE error queued.
+                    continue
                 raise RuntimeError(f"ESP32 rejected {command!r}: {reply}")
         raise TimeoutError(f"ESP32 did not answer {command!r} at {self.address}")
 
@@ -153,12 +181,21 @@ class UdpChassisDriver(ChassisDriver):
         self.socket.settimeout(min(0.08, self.timeout_s))
         self._request("PING", "OK:PING")
 
+    def ping(self) -> float:
+        started = time.perf_counter()
+        self._request("PING", "OK:PING")
+        return time.perf_counter() - started
+
     def enable(self) -> None:
         self._request("ENABLE", "OK:ENABLE", self.enable_timeout_s)
         self.enabled = True
 
     def send(self, command: VelocityCommand) -> None:
         if self.socket is not None and self.enabled:
+            for reply in self._drain_pending():
+                if reply.startswith(("ERR:DISABLED_OR_BUSY", "ERR:BUSY")):
+                    self.enabled = False
+                    raise RuntimeError("ESP32 watchdog stopped the chassis; press G to re-arm")
             packet = self._packet("DRIVE", f"{command.vx:.4f}", f"{command.vy:.4f}", f"{command.omega:.4f}")
             self.socket.sendto(packet, self.address)
 

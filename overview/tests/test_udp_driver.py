@@ -5,9 +5,22 @@ from tennisbot.navigation.models import VelocityCommand
 class FakeSocket:
     def __init__(self) -> None:
         self.sent = []
+        self.timeout = 0.08
 
     def sendto(self, packet, address):
         self.sent.append((packet, address))
+
+    def gettimeout(self):
+        return self.timeout
+
+    def setblocking(self, _enabled):
+        pass
+
+    def settimeout(self, timeout):
+        self.timeout = timeout
+
+    def recvfrom(self, _size):
+        raise BlockingIOError
 
 
 def test_udp_drive_packet_contains_token_sequence_and_body() -> None:

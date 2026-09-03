@@ -133,13 +133,21 @@ python scripts/test_chassis_udp.py --host 192.168.4.1 --token 你的控制令牌
 1. 暂时仍不接地运行，把四轮架空。
 2. 执行一次短动作测试。
 3. 动作过程中关闭 PowerShell 或断开电脑 Wi-Fi。
-4. ESP32 必须在约 300 ms 内停车并失能，USB Shell 显示：
+4. ESP32 必须在约 600 ms 内停车并失能，USB Shell 显示：
 
 ```text
 WARN:WATCHDOG:stopped_and_disabled
 ```
 
 失联后必须重新执行 ENABLE；导航窗口中就是重新按 `G`。
+
+正式运动前可先连续测 200 个不使能电机的 UDP 往返包：
+
+```powershell
+python scripts/diagnose_udp_link.py --host 192.168.4.1 --token TOKEN --count 200
+```
+
+建议丢包为 0，`p95` 小于 50 ms，最大值明显低于 600 ms。如果这里稳定而键盘仍失控，优先排查程序状态；如果这里本身大量丢包，再调整电脑网卡、电源和现场 2.4 GHz 干扰。
 
 ## 第七阶段：架空轮子测试
 

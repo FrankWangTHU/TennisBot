@@ -52,9 +52,12 @@ def main() -> None:
                 if key == "\x1b":
                     return
                 if key == "g" and not armed:
-                    driver.enable()
-                    armed = True
-                    print("ARMED")
+                    try:
+                        driver.enable()
+                        armed = True
+                        print("ARMED")
+                    except (RuntimeError, TimeoutError) as exc:
+                        print(f"使能失败：{exc}。确认网络后再按 G。")
                 elif key == "x":
                     active = VelocityCommand()
                     active_until = 0.0
@@ -65,8 +68,15 @@ def main() -> None:
                     active = commands[key]
                     active_until = time.monotonic() + 0.20
             command = active if armed and time.monotonic() < active_until else VelocityCommand()
-            driver.send(command)
+            try:
+                driver.send(command)
+            except (RuntimeError, OSError) as exc:
+                armed = False
+                active = VelocityCommand()
+                print(f"控制链路已进入安全停车：{exc}。重新按 G 恢复。")
             time.sleep(0.05)
+    except KeyboardInterrupt:
+        pass
     finally:
         driver.close()
         print("底盘已停车并失能。")
