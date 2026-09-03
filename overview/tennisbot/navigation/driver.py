@@ -44,10 +44,11 @@ class DryRunDriver(ChassisDriver):
 
 
 class SerialChassisDriver(ChassisDriver):
-    def __init__(self, port: str, baudrate: int = 115200, timeout_s: float = 0.25) -> None:
+    def __init__(self, port: str, baudrate: int = 115200, timeout_s: float = 0.25, enable_timeout_s: float = 2.0) -> None:
         self.port = port
         self.baudrate = int(baudrate)
         self.timeout_s = float(timeout_s)
+        self.enable_timeout_s = float(enable_timeout_s)
         self.serial = None
         self.enabled = False
 
@@ -56,9 +57,9 @@ class SerialChassisDriver(ChassisDriver):
             raise RuntimeError("Serial chassis is not connected")
         self.serial.write((line.rstrip() + "\n").encode("ascii"))
 
-    def _request(self, line: str, expected_prefix: str = "OK:") -> str:
+    def _request(self, line: str, expected_prefix: str = "OK:", timeout_s: float | None = None) -> str:
         self._write(line)
-        deadline = time.monotonic() + self.timeout_s
+        deadline = time.monotonic() + (self.timeout_s if timeout_s is None else timeout_s)
         while time.monotonic() < deadline:
             raw = self.serial.readline()
             if not raw:
@@ -81,7 +82,7 @@ class SerialChassisDriver(ChassisDriver):
         self._request("PING", "OK:PING")
 
     def enable(self) -> None:
-        self._request("ENABLE", "OK:ENABLE")
+        self._request("ENABLE", "OK:ENABLE", self.enable_timeout_s)
         self.enabled = True
 
     def send(self, command: VelocityCommand) -> None:
@@ -107,10 +108,11 @@ class SerialChassisDriver(ChassisDriver):
 
 
 class UdpChassisDriver(ChassisDriver):
-    def __init__(self, host: str, port: int = 5005, token: str = "change-me-tennisbot", timeout_s: float = 0.3) -> None:
+    def __init__(self, host: str, port: int = 5005, token: str = "change-me-tennisbot", timeout_s: float = 0.3, enable_timeout_s: float = 2.0) -> None:
         self.address = (host, int(port))
         self.token = token
         self.timeout_s = float(timeout_s)
+        self.enable_timeout_s = float(enable_timeout_s)
         self.socket: socket.socket | None = None
         self.sequence = 0
         self.enabled = False
@@ -120,18 +122,26 @@ class UdpChassisDriver(ChassisDriver):
         fields = [command, self.token, str(self.sequence), *(str(value) for value in values)]
         return (" ".join(fields) + "\n").encode("ascii")
 
-    def _request(self, command: str, expected: str) -> str:
+    def _request(self, command: str, expected: str, timeout_s: float | None = None) -> str:
         if self.socket is None:
             raise RuntimeError("UDP chassis is not connected")
         packet = self._packet(command)
-        deadline = time.monotonic() + self.timeout_s
+        deadline = time.monotonic() + (self.timeout_s if timeout_s is None else timeout_s)
+        enable_started = False
+        self.socket.sendto(packet, self.address)
         while time.monotonic() < deadline:
-            self.socket.sendto(packet, self.address)
             try:
                 data, sender = self.socket.recvfrom(256)
             except socket.timeout:
+                # ENABLE blocks the ESP32 loop while four motors initialize.
+                # Once its progress reply arrives, do not queue duplicate ENABLE packets.
+                if not enable_started:
+                    self.socket.sendto(packet, self.address)
                 continue
             reply = data.decode("ascii", "replace").strip()
+            if sender[0] == self.address[0] and reply.startswith("INFO:ENABLE:"):
+                enable_started = True
+                continue
             if sender[0] == self.address[0] and reply.startswith(expected):
                 return reply
             if sender[0] == self.address[0] and reply.startswith("ERR:"):
@@ -144,7 +154,7 @@ class UdpChassisDriver(ChassisDriver):
         self._request("PING", "OK:PING")
 
     def enable(self) -> None:
-        self._request("ENABLE", "OK:ENABLE")
+        self._request("ENABLE", "OK:ENABLE", self.enable_timeout_s)
         self.enabled = True
 
     def send(self, command: VelocityCommand) -> None:
@@ -180,7 +190,7 @@ def create_driver(config: dict, allow_motion: bool) -> ChassisDriver:
     if not allow_motion or kind == "dry_run":
         return DryRunDriver()
     if kind == "serial":
-        return SerialChassisDriver(str(driver_cfg.get("port", "COM12")), int(driver_cfg.get("baudrate", 115200)), float(driver_cfg.get("command_timeout_s", 0.25)))
+        return SerialChassisDriver(str(driver_cfg.get("port", "COM12")), int(driver_cfg.get("baudrate", 115200)), float(driver_cfg.get("command_timeout_s", 0.25)), float(driver_cfg.get("enable_timeout_s", 2.0)))
     if kind == "udp":
-        return UdpChassisDriver(str(driver_cfg.get("host", "192.168.4.1")), int(driver_cfg.get("udp_port", 5005)), str(driver_cfg.get("token", "change-me-tennisbot")), float(driver_cfg.get("command_timeout_s", 0.3)))
+        return UdpChassisDriver(str(driver_cfg.get("host", "192.168.4.1")), int(driver_cfg.get("udp_port", 5005)), str(driver_cfg.get("token", "change-me-tennisbot")), float(driver_cfg.get("command_timeout_s", 0.3)), float(driver_cfg.get("enable_timeout_s", 2.0)))
     raise ValueError(f"Unsupported chassis driver type: {kind}")

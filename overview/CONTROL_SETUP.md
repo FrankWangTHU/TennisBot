@@ -31,6 +31,8 @@ python scripts/test_chassis_serial.py --port COM12
 
 把 COM12 换成实际端口。看到 `PING 成功` 表示新增通信桥正常；原始示例本身不会回应这个 PING。
 
+`ENABLE` 会逐个初始化四个电机，原电机库固定等待合计约 0.72 秒，因此 PC 对使能命令单独等待 2 秒；普通 PING/STOP 仍使用较短超时。如果 PING 成功但 ENABLE 报错，新的 PC 驱动会继续等待并显示 ESP32 返回的 CAN 初始化错误。
+
 ## 架空轮子测试
 
 ```powershell

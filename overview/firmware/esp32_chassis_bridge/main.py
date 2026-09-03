@@ -105,6 +105,7 @@ def handle_serial(line):
         serial_reply("OK:PING:ready")
     elif command == "ENABLE":
         active_peer = "serial"
+        serial_reply("INFO:ENABLE:starting")
         enable_chassis()
         serial_reply("OK:ENABLE")
     elif command == "DRIVE":
@@ -156,6 +157,7 @@ def handle_udp(payload, peer):
                 return
             active_peer = peer
             last_udp_seq = sequence
+            udp_reply("INFO:ENABLE:starting", peer)
             enable_chassis()
             udp_reply("OK:ENABLE %d" % sequence, peer)
             return

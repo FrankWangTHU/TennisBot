@@ -30,3 +30,5 @@ driver:
   port: COM12
   baudrate: 115200
   command_timeout_s: 0.25
+  # 四个电机逐个初始化至少约 0.72 秒，不能使用普通命令超时。
+  enable_timeout_s: 2.0
