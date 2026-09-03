@@ -21,8 +21,12 @@ latency:
   pose_loss_grace_s: 0.25
 
 driver:
-  # 首次调试保持 dry_run；完成架空轮测试后改为 serial。
+  # 首次调试保持 dry_run；无线调试完成后改为 udp。
   type: dry_run
+  host: 192.168.4.1
+  udp_port: 5005
+  token: change-me-tennisbot
+  # USB 串口仍可用于救援和有线测试。
   port: COM12
   baudrate: 115200
   command_timeout_s: 0.25

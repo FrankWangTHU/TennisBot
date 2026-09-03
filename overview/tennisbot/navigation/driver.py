@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import socket
 from abc import ABC, abstractmethod
 
 from tennisbot.navigation.models import VelocityCommand
@@ -105,8 +106,81 @@ class SerialChassisDriver(ChassisDriver):
             self.serial = None
 
 
+class UdpChassisDriver(ChassisDriver):
+    def __init__(self, host: str, port: int = 5005, token: str = "change-me-tennisbot", timeout_s: float = 0.3) -> None:
+        self.address = (host, int(port))
+        self.token = token
+        self.timeout_s = float(timeout_s)
+        self.socket: socket.socket | None = None
+        self.sequence = 0
+        self.enabled = False
+
+    def _packet(self, command: str, *values: object) -> bytes:
+        self.sequence += 1
+        fields = [command, self.token, str(self.sequence), *(str(value) for value in values)]
+        return (" ".join(fields) + "\n").encode("ascii")
+
+    def _request(self, command: str, expected: str) -> str:
+        if self.socket is None:
+            raise RuntimeError("UDP chassis is not connected")
+        packet = self._packet(command)
+        deadline = time.monotonic() + self.timeout_s
+        while time.monotonic() < deadline:
+            self.socket.sendto(packet, self.address)
+            try:
+                data, sender = self.socket.recvfrom(256)
+            except socket.timeout:
+                continue
+            reply = data.decode("ascii", "replace").strip()
+            if sender[0] == self.address[0] and reply.startswith(expected):
+                return reply
+            if sender[0] == self.address[0] and reply.startswith("ERR:"):
+                raise RuntimeError(f"ESP32 rejected {command!r}: {reply}")
+        raise TimeoutError(f"ESP32 did not answer {command!r} at {self.address}")
+
+    def connect(self) -> None:
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.settimeout(min(0.08, self.timeout_s))
+        self._request("PING", "OK:PING")
+
+    def enable(self) -> None:
+        self._request("ENABLE", "OK:ENABLE")
+        self.enabled = True
+
+    def send(self, command: VelocityCommand) -> None:
+        if self.socket is not None and self.enabled:
+            packet = self._packet("DRIVE", f"{command.vx:.4f}", f"{command.vy:.4f}", f"{command.omega:.4f}")
+            self.socket.sendto(packet, self.address)
+
+    def stop(self) -> None:
+        if self.socket is not None and self.enabled:
+            try:
+                self._request("STOP", "OK:STOP")
+            except Exception:
+                pass
+
+    def close(self) -> None:
+        if self.socket is None:
+            return
+        try:
+            self.stop()
+            if self.enabled:
+                self._request("DISABLE", "OK:DISABLE")
+        except Exception:
+            pass
+        finally:
+            self.enabled = False
+            self.socket.close()
+            self.socket = None
+
+
 def create_driver(config: dict, allow_motion: bool) -> ChassisDriver:
     driver_cfg = config.get("driver", {})
-    if str(driver_cfg.get("type", "dry_run")).lower() != "serial" or not allow_motion:
+    kind = str(driver_cfg.get("type", "dry_run")).lower()
+    if not allow_motion or kind == "dry_run":
         return DryRunDriver()
-    return SerialChassisDriver(str(driver_cfg.get("port", "COM12")), int(driver_cfg.get("baudrate", 115200)), float(driver_cfg.get("command_timeout_s", 0.25)))
+    if kind == "serial":
+        return SerialChassisDriver(str(driver_cfg.get("port", "COM12")), int(driver_cfg.get("baudrate", 115200)), float(driver_cfg.get("command_timeout_s", 0.25)))
+    if kind == "udp":
+        return UdpChassisDriver(str(driver_cfg.get("host", "192.168.4.1")), int(driver_cfg.get("udp_port", 5005)), str(driver_cfg.get("token", "change-me-tennisbot")), float(driver_cfg.get("command_timeout_s", 0.3)))
+    raise ValueError(f"Unsupported chassis driver type: {kind}")
