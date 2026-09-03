@@ -133,7 +133,7 @@ class UdpChassisDriver(ChassisDriver):
                 data, sender = self.socket.recvfrom(256)
                 if sender[0] == self.address[0]:
                     replies.append(data.decode("ascii", "replace").strip())
-        except (BlockingIOError, socket.timeout):
+        except OSError:
             pass
         finally:
             self.socket.settimeout(old_timeout)
@@ -178,6 +178,9 @@ class UdpChassisDriver(ChassisDriver):
 
     def connect(self) -> None:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Windows requires a local UDP endpoint before recvfrom; without this
+        # the initial stale-reply drain can fail with WinError 10022.
+        self.socket.bind(("0.0.0.0", 0))
         self.socket.settimeout(min(0.08, self.timeout_s))
         self._request("PING", "OK:PING")
 

@@ -23,6 +23,11 @@ class FakeSocket:
         raise BlockingIOError
 
 
+class WindowsEmptySocket(FakeSocket):
+    def recvfrom(self, _size):
+        raise OSError(10022, "invalid argument")
+
+
 def test_udp_drive_packet_contains_token_sequence_and_body() -> None:
     driver = UdpChassisDriver("192.168.4.1", 5005, "secret")
     driver.socket = FakeSocket()
@@ -37,3 +42,9 @@ def test_driver_factory_requires_explicit_motion_permission() -> None:
     config = {"driver": {"type": "udp", "host": "192.168.4.1"}}
     assert isinstance(create_driver(config, allow_motion=False), DryRunDriver)
     assert isinstance(create_driver(config, allow_motion=True), UdpChassisDriver)
+
+
+def test_udp_drain_tolerates_windows_empty_socket_error() -> None:
+    driver = UdpChassisDriver("192.168.4.1")
+    driver.socket = WindowsEmptySocket()
+    assert driver._drain_pending() == []
