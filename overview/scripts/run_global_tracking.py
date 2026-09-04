@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import time
 
 import cv2
@@ -53,6 +54,14 @@ def _render_auto_tuning_panel(
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Global robot and tennis-ball tracking")
+    parser.add_argument(
+        "--tune-balls",
+        action="store_true",
+        help="enable click-to-learn ball colors and show the tuning help window",
+    )
+    args = parser.parse_args()
+
     tracker = GlobalTracker(require_homography=True)
     live_win = "Global Tracking"
     tuning_win = "Ball Auto Tuning"
@@ -60,8 +69,9 @@ def main() -> None:
     mask_win = "HSV Mask"
     cv2.namedWindow(live_win, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(live_win, 1280, 720)
-    cv2.namedWindow(tuning_win, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(tuning_win, 760, 250)
+    if args.tune_balls:
+        cv2.namedWindow(tuning_win, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(tuning_win, 760, 250)
     show_world = False
     show_mask = False
     latest_raw_frame: np.ndarray | None = None
@@ -97,9 +107,10 @@ def main() -> None:
             tuning_status = f"Click rejected: {exc}"
             print(tuning_status)
 
-    cv2.setMouseCallback(live_win, sample_ball_color)
-    print("无需滑条：在主窗口依次左键点击 2-5 颗真实网球，程序会自动调整并立即保存。")
-    print("快捷键: Q/ESC 退出  U 撤销标注  S 保存debug  H mask  W 俯视图  R 重载")
+    if args.tune_balls:
+        cv2.setMouseCallback(live_win, sample_ball_color)
+        print("网球调参模式：在主窗口依次左键点击 2-5 颗真实网球，程序会自动调整并保存。")
+    print("快捷键: Q/ESC 退出  S 保存debug  H mask  W 等比例俯视图  R 重载")
     last = time.perf_counter()
     fps = 0.0
     try:
@@ -122,7 +133,7 @@ def main() -> None:
                 f"Field: {format_meters(tracker.transform.width_m)} x "
                 f"{format_meters(tracker.transform.height_m)} m  (oblique homography)",
                 f"HSV: {tracker.ball_detector.hsv_lower.tolist()} -> "
-                f"{tracker.ball_detector.hsv_upper.tolist()}  click real balls: auto learn + save",
+                f"{tracker.ball_detector.hsv_upper.tolist()}",
             ]
             if state.robot is None:
                 hud.append("Robot: not detected")
@@ -140,15 +151,20 @@ def main() -> None:
                 front_edge=tracker.tag_detector.front_edge,
                 hud_lines=hud,
             )
-            for i, (px, py) in enumerate(auto_tuner.points, start=1):
-                cv2.drawMarker(vis, (px, py), (255, 0, 255), cv2.MARKER_CROSS, 28, 3)
-                put_text_bg(vis, f"sample {i}", (px + 12, py - 12), scale=0.45, color=(255, 0, 255))
-            put_text_bg(vis, "Q quit  Left-click balls=auto save  U undo  S debug  H mask  W world  R reload", (12, vis.shape[0] - 16), scale=0.5)
+            if args.tune_balls:
+                for i, (px, py) in enumerate(auto_tuner.points, start=1):
+                    cv2.drawMarker(vis, (px, py), (255, 0, 255), cv2.MARKER_CROSS, 28, 3)
+                    put_text_bg(vis, f"sample {i}", (px + 12, py - 12), scale=0.45, color=(255, 0, 255))
+            footer = "Q quit  S debug  H mask  W proportional world  R reload"
+            if args.tune_balls:
+                footer += "  Left-click tune  U undo"
+            put_text_bg(vis, footer, (12, vis.shape[0] - 16), scale=0.5)
             cv2.imshow(live_win, vis)
-            cv2.imshow(
-                tuning_win,
-                _render_auto_tuning_panel(tracker, auto_tuner, tuning_status),
-            )
+            if args.tune_balls:
+                cv2.imshow(
+                    tuning_win,
+                    _render_auto_tuning_panel(tracker, auto_tuner, tuning_status),
+                )
             if show_world and tracker.transform is not None:
                 cv2.imshow(world_win, render_world_view(state, tracker.transform))
             if show_mask:
@@ -159,7 +175,7 @@ def main() -> None:
             if key in (ord("s"), ord("S")):
                 paths = save_debug_snapshot(result.frame, result.mask, state)
                 print(f"已保存 debug: {paths['frame'].name}, {paths['json'].name}")
-            if key in (ord("u"), ord("U")):
+            if args.tune_balls and key in (ord("u"), ord("U")):
                 auto_tuner.undo()
                 if auto_tuner.points:
                     learned = auto_tuner.apply(tracker.ball_detector)

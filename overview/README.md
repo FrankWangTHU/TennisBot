@@ -74,9 +74,9 @@ Set-ExecutionPolicy -Scope Process Bypass
    python scripts/run_global_tracking.py
    ```
 
-   程序会单独打开 `Ball Auto Tuning` 状态窗口，不需要拖动任何滑条。在 `Global Tracking` 主画面依次左键点击 2–5 颗真实网球，程序会从球体周围自动学习 HSV、面积和圆度，每次点击后立即应用并保存到 `config/perception.yaml`。右键清空本轮标记，`U` 撤销最后一个标记。
+   普通运行只打开主跟踪窗口，不弹出网球调参窗口，也不会因误点画面而修改参数。如果环境改变、确实需要重新学习球色，使用 `python scripts/run_global_tracking.py --tune-balls`；然后在主画面依次左键点击 2–5 颗真实网球，程序会自动学习并保存到 `config/perception.yaml`。
 
-   快捷键：`Q/ESC` 退出，`U` 撤销最后一个自动标注，`S` 保存原图、mask 和检测 JSON，`H` 显示 mask，`W` 按需显示黑色俯视图，`R` 重新加载配置和标定。
+   快捷键：`Q/ESC` 退出，`S` 保存原图、mask 和检测 JSON，`H` 显示 mask，`W` 显示严格等比例的世界俯视图，`R` 重新加载配置和标定。调参模式下还可用 `U` 撤销最后一个自动标注。
 
 ## 验收测试
 
