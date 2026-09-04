@@ -17,6 +17,8 @@ class ChassisDriver(ABC):
     @abstractmethod
     def stop(self) -> None: ...
     @abstractmethod
+    def disable(self) -> None: ...
+    @abstractmethod
     def close(self) -> None: ...
 
 
@@ -38,9 +40,12 @@ class DryRunDriver(ChassisDriver):
     def stop(self) -> None:
         self.last_command = VelocityCommand()
 
-    def close(self) -> None:
+    def disable(self) -> None:
         self.stop()
         self.enabled = False
+
+    def close(self) -> None:
+        self.disable()
 
 
 class SerialChassisDriver(ChassisDriver):
@@ -93,12 +98,17 @@ class SerialChassisDriver(ChassisDriver):
         if self.serial is not None:
             self._write("STOP")
 
+    def disable(self) -> None:
+        if self.serial is not None and self.enabled:
+            self._request("DISABLE", "OK:DISABLE")
+        self.enabled = False
+
     def close(self) -> None:
         if self.serial is None:
             return
         try:
             self.stop()
-            self._request("DISABLE", "OK:DISABLE")
+            self.disable()
         except Exception:
             pass
         finally:
@@ -209,13 +219,19 @@ class UdpChassisDriver(ChassisDriver):
             except Exception:
                 pass
 
+    def disable(self) -> None:
+        if self.socket is not None and self.enabled:
+            try:
+                self._request("DISABLE", "OK:DISABLE")
+            finally:
+                self.enabled = False
+
     def close(self) -> None:
         if self.socket is None:
             return
         try:
             self.stop()
-            if self.enabled:
-                self._request("DISABLE", "OK:DISABLE")
+            self.disable()
         except Exception:
             pass
         finally:

@@ -7,6 +7,8 @@ venv/
 .mypy_cache/
 data/debug/*
 !data/debug/.gitkeep
+data/navigation/*.csv
+!data/navigation/.gitkeep
 *.jpg
 *.png
 !data/calibration/.gitkeep

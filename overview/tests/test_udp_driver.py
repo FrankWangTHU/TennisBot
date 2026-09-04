@@ -48,3 +48,12 @@ def test_udp_drain_tolerates_windows_empty_socket_error() -> None:
     driver = UdpChassisDriver("192.168.4.1")
     driver.socket = WindowsEmptySocket()
     assert driver._drain_pending() == []
+
+
+def test_dry_run_disable_clears_motion_permission() -> None:
+    driver = DryRunDriver()
+    driver.enable()
+    driver.send(VelocityCommand(vx=0.05))
+    driver.disable()
+    assert not driver.enabled
+    assert driver.last_command.is_stopped

@@ -15,9 +15,11 @@ class MecanumPoseController:
         self.max_angular = float(config.get("max_angular_radps", 0.45))
         self.position_tolerance = float(config.get("position_tolerance_m", 0.05))
         self.heading_tolerance = radians(float(config.get("heading_tolerance_deg", 8.0)))
+        self.heading_enabled = bool(config.get("heading_control_enabled", True))
 
     def errors(self, pose: RobotPose, target: RobotPose) -> tuple[float, float]:
-        return hypot(target.x - pose.x, target.y - pose.y), wrap_angle(target.theta - pose.theta)
+        heading = wrap_angle(target.theta - pose.theta) if self.heading_enabled else 0.0
+        return hypot(target.x - pose.x, target.y - pose.y), heading
 
     def at_target(self, pose: RobotPose, target: RobotPose) -> bool:
         distance, heading = self.errors(pose, target)
@@ -32,7 +34,6 @@ class MecanumPoseController:
         if speed > self.max_linear:
             scale = self.max_linear / speed
             vx, vy = vx * scale, vy * scale
-        omega = self.kp_theta * wrap_angle(target.theta - pose.theta)
+        omega = self.kp_theta * wrap_angle(target.theta - pose.theta) if self.heading_enabled else 0.0
         omega = max(-self.max_angular, min(self.max_angular, omega))
         return VelocityCommand(vx, vy, omega)
-

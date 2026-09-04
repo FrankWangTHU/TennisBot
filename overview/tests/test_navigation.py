@@ -53,3 +53,11 @@ def test_arrival_requires_settle_time() -> None:
     nav = ClosedLoopNavigator(RobotPose(0, 0, 0), CONFIG)
     assert nav.update(RobotPose(0, 0, 0), 1.0).state == NavigationState.SETTLING
     assert nav.update(RobotPose(0, 0, 0), 1.25).state == NavigationState.ARRIVED
+
+
+def test_position_only_mode_never_commands_rotation() -> None:
+    config = {**CONFIG, "controller": {**CONFIG["controller"], "heading_control_enabled": False}}
+    nav = ClosedLoopNavigator(RobotPose(1, 0, pi), config)
+    output = nav.update(RobotPose(0, 0, 0), 1.0)
+    assert output.command.vx > 0
+    assert output.command.omega == 0

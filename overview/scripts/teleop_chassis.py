@@ -61,7 +61,7 @@ def main() -> None:
                 elif key == "x":
                     active = VelocityCommand()
                     active_until = 0.0
-                    driver.stop()
+                    driver.disable()
                     armed = False
                     print("STOPPED / DISARMED")
                 elif key in commands and armed:

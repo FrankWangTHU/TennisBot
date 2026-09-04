@@ -4,14 +4,16 @@ target:
   theta_deg: 0.0
 
 controller:
-  kp_xy: 1.0
-  kp_theta: 1.8
-  max_linear_mps: 0.08
-  max_angular_radps: 0.45
-  max_linear_accel_mps2: 0.12
-  max_angular_accel_radps2: 0.8
-  position_tolerance_m: 0.05
-  heading_tolerance_deg: 8.0
+  # 初次闭环使用保守参数；稳定后按 CLOSED_LOOP_SETUP.md 的顺序提高。
+  kp_xy: 0.7
+  kp_theta: 1.2
+  max_linear_mps: 0.05
+  max_angular_radps: 0.25
+  max_linear_accel_mps2: 0.10
+  max_angular_accel_radps2: 0.5
+  position_tolerance_m: 0.07
+  heading_tolerance_deg: 10.0
+  heading_control_enabled: true
   settle_time_s: 0.6
 
 latency:
@@ -19,6 +21,10 @@ latency:
   measurement_latency_s: 0.9
   # AprilTag 短暂漏检时继续用运动模型预测；超过此时间立即停车。
   pose_loss_grace_s: 0.25
+
+safety:
+  # 防止 AprilTag 只偶然出现一帧时误使能。
+  min_pose_frames_to_arm: 5
 
 driver:
   # 首次调试保持 dry_run；无线调试完成后改为 udp。
