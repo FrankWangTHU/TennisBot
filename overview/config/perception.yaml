@@ -4,6 +4,20 @@ apriltag:
   front_edge: top
   corner_refinement: APRILTAG
   error_correction_rate: 0.8
+  # Homography 是在地面 z=0 上标定的。车顶 Tag 高于地面时，需要把它
+  # 沿相机地面投影方向拉回；球仍按原来的地面 Homography 计算。
+  height_correction:
+    enabled: true
+    camera_height_m: 2.30
+    tag_height_m: 0.17
+    # 初值：相机在 2.5m 边的中央，位于 y=0 的 x 轴外侧 0.75m。
+    # 请用卷尺测量镜头正下方在地面的世界坐标后替换。
+    camera_ground_x_m: 1.25
+    camera_ground_y_m: -0.75
+  # 从底盘控制中心指向 Tag 中心的车体坐标偏移：前为正、左为正。
+  # Tag 若正好位于底盘中心上方，两项保持 0。
+  tag_offset_forward_m: 0.0
+  tag_offset_left_m: 0.0
 ball_detection:
   hsv_lower:
   - 29

@@ -154,7 +154,10 @@ class GlobalTracker:
         robot = None
         if robot_tag is not None and self.transform is not None:
             robot = pose_from_tag(
-                robot_tag, self.transform, self.tag_detector.front_edge
+                robot_tag,
+                self.transform,
+                self.tag_detector.front_edge,
+                self.perception_cfg.get("apriltag", {}),
             )
 
         observations: list[tuple[BallDetection, BallWorld]] = []
