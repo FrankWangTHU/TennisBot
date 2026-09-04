@@ -87,7 +87,7 @@ python scripts/run_closed_loop_navigation.py --x 0.55 --y 0.50 --position-only
 - 紫色 TARGET 在预期位置。
 - AprilTag 连续时 `Pose ready` 达到 `5/5`。
 - 遮挡 Tag 超过 0.25 秒后显示 `pose_lost`。
-- `Sent` 始终为零；上方计算状态和误差仍会更新。
+- 未按 `G` 时 `Sent` 为零；按 `G` 后可观察模拟速度，但 dry-run 不连接、也不会驱动真实底盘。
 
 ## 4. 架空轮子进行第一次闭环使能
 
